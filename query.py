@@ -7,6 +7,7 @@ import base64
 import binascii
  
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.settimeout(1.0)
 
 host = "announce.syncthing.net"
 port = 22026
@@ -14,10 +15,10 @@ port = 22026
 MAGIC_QUERY = 0x2CA856F5
 MAGIC_ANNOUNCE = 0x9D79BC39
 
-dev_id = sys.argv[1]
+dev_id_in = sys.argv[1]
 
 # remove block seperators
-dev_id = dev_id.replace("-", "")
+dev_id = dev_id_in.replace("-", "")
 
 # strip check digits
 dev_id_b = bytearray(dev_id, encoding="ASCII")
@@ -30,7 +31,11 @@ dev_id = base64.b32decode(dev_id + "====")
 msg = struct.pack("!II32s", MAGIC_QUERY, 32, dev_id)
 s.sendto(msg, (host, port))
 
-reply, addr = s.recvfrom(1024)
+try:
+	reply, addr = s.recvfrom(1024)
+except socket.timeout:
+	print("ERROR: Server didn't send a response for id '%s'" % dev_id_in)
+	sys.exit(1)
 
 offset = 0
 def unpt(fmt):
